@@ -1,0 +1,14 @@
+{
+  "devDependencies": {
+    "grunt": "0.4.1",
+    "grunt-bower-task": "0.2.3",
+    "grunt-contrib-clean": "0.4.1",
+    "grunt-contrib-coffee": "0.7.0",
+    "grunt-contrib-less": "~0.6.2",
+    "grunt-contrib-watch": "0.4.4",
+    "grunt-copy-to": "0.0.4",
+    "grunt-express": "0.3.6",
+    "grunt-shell": "0.3.0",
+    "underscore": "1.4.4"
+  }
+}

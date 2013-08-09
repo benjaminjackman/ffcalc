@@ -1,0 +1,17 @@
+#!/bin/bash
+
+MAIN=`pwd`
+SITE=../ffcalc-site/
+
+if [ ! -d $SITE ] ; then
+  echo "directory [$SITE] does not exist!"
+  exit 1
+fi
+
+cd $SITE &&
+rm -rf * &&
+cd $MAIN &&
+cp -r target/site/* $SITE &&
+cd $SITE &&
+git gui
+
