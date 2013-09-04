@@ -1393,10 +1393,14 @@ schiefRules = {
     DEF:1
     K:1
     QB:1
-    RB: 2.33
-    TE: 1.33
-    WR: 3.33
+    RB: 2
+    TE: 1
+    WR: 3
   }
+  #RB/WR/TE flex
+  flexPos: ["RB","WR","TE"]
+  flexCnt: 1
+
   totalPlayers:17
   #number of players that were kept
   keptCnt : 0+1+3+3+1+2+1+3+3+3+3+2
@@ -1437,18 +1441,42 @@ process = (players, rules) ->
   playerToRow = (p) ->
     _.map Headers, (h) -> p[h]
 
-  #Total at each positon for the whole leage
-  posCntLeague = {}
-  for pos, cnt of rules.posCntTeam
-    posCntLeague[pos] = Math.floor(cnt * rules.teamCnt)
 
   #pos,prk,name,team,bye,inj,age,exp,pts,value,lvalue,owner,bid,notes
   processPlayers = (players) ->
+    #Total at each positon for the whole leage
+    posCntLeague = {}
+    for pos, cnt of rules.posCntTeam
+      posCntLeague[pos] = Math.floor(cnt * rules.teamCnt)
+
+
     #add index to players, will be needed later to print return values in the same order
     players.forEach (p, i) -> p.index = i
     posToPlayers = _.groupBy players, (player) -> player.pos
     _.forEach posToPlayers,  (players, pos) ->
       posToPlayers[pos] = _.sortBy players, (p) -> -p.pts
+
+    #Add in the flex to each of the positions counts
+    #the flex is used by removing the top players from the WR/RB/TE
+    # positions and then sorting the remaining
+    # then taking to the flexCnt from different positions
+    addFlex= () ->
+      flexCnt = rules.flexCnt * rules.teamCnt
+      ps = []
+      for pos in rules.flexPos
+        ps = ps.concat(_.drop posToPlayers[pos], posCntLeague[pos])
+
+      ps = _.sortBy ps, (p) -> -p.pts
+
+      ps = _.first ps, flexCnt
+
+      _.forEach ps, (p) ->
+        posCntLeague[p.pos] += 1
+
+    console.log(posCntLeague)
+    addFlex()
+    console.log(posCntLeague)
+
     posToStats = {}
     totPnts = 0
     totDiff = 0
