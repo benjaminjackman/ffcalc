@@ -79,7 +79,6 @@ process = (players, rules) ->
   playerToRow = (p) ->
     _.map Headers, (h) -> p[h]
 
-
   #pos,prk,name,team,bye,inj,age,exp,pts,value,lvalue,owner,bid,notes
   processPlayers = (players) ->
     #Total at each positon for the whole leage
