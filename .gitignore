@@ -4,3 +4,4 @@ tsd
 target/site/*.html
 target/site/scripts/coffee/*
 target/site/styles/less/*
+/npm-debug.log
