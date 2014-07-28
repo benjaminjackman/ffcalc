@@ -19,7 +19,8 @@ Rules = {
     startingCash : 183
     totalCash: () ->
       #total money left after keepers on each team -
-      200+194+65+126+184+152+164+147+146+150+121+177 - this.totalPlayers * this.teamCnt - this.keptCnt
+      #200+194+65+126+184+152+164+147+146+150+121+177 - this.totalPlayers * this.teamCnt - this.keptCnt
+      183*12
 
     #playersPerTeam = 15
     forceDefKToOne : true
@@ -75,6 +76,62 @@ process = (players, rules) ->
 
   #totalCash = 135+196+169+80+154+179+146+86+82+143+150+145
   keptCnt = 0
+
+  espnDump = (players) ->
+    console.log("ESPN: ")
+    ps = _.map players, (p) -> {name: p.name, team: p.team, pos: p.pos, prc: p.nvalue}
+    code = """
+      var players = #{JSON.stringify(ps)}
+      var tc = function(t) {
+        switch (t) {
+          case "WSH":
+            return "WAS"
+          case  "JAC":
+            return "JAX"
+          default:
+            return t
+        }
+      }
+
+      function lookup(name, eteam, pos) {
+        var team = tc(eteam)
+        var xs = players.filter(function(p){return p.name === name && p.team === team})
+        if (xs.length == 0) {
+          console.error("FOUND NO MATCH:", name, team, pos)
+          return 0
+        } else if (xs.length == 1) {
+          console.log("FOUND EXACT MATCH:", name, team, pos, xs)
+          var prc = xs[0].prc
+          if (prc < -20) {
+            return 1
+          } else if (prc <= 0) {
+            return 2
+          } else if (prc <= 3) {
+            return 3
+          } else {
+            return prc
+          }
+        } else {
+          console.error("FOUND TOO MANY MATCHES:", name, team, pos, found)
+          return 0
+        }
+      }
+
+      function dop(html) {
+        var input = html.querySelector(".playertableData input")
+        var name = html.querySelector(".playertablePlayerName a").text
+        var txt = ""+html.querySelector(".playertablePlayerName").childNodes[1].textContent
+        var split = /,\\s(\\S*)\\s(\\S*)/g.exec(txt)
+        var team = split[1].toUpperCase()
+        var pos = split[2].toUpperCase()
+
+        //console.log(name,team,pos)
+        input.value = lookup(name, team, pos)
+      }
+      [].forEach.call(document.querySelectorAll(".pncPlayerRow"), dop)
+    """
+
+    code
 
   playerToRow = (p) ->
     _.map Headers, (h) -> p[h]
@@ -152,12 +209,15 @@ process = (players, rules) ->
       p.nvalue = d3.round(value)
       p.p80 = d3.round(value * .8)
 
+    espnCode = espnDump(players)
+    $("#output").append("<textarea>#{espnCode}</textarea>")
 
     table = d3.select("#output").append("table")
     thead = table.append("thead").append("tr")
     thead.selectAll("td").data(Headers).enter().append("td").text((d)->d)
     tbody = table.append("tbody")
     tbody.selectAll("tr").data(players).enter().append("tr").selectAll("td").data((p)->playerToRow(p)).enter().append("td").text((d)->d)
+
 
   processPlayers(players)
 
