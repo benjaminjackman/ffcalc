@@ -4,54 +4,35 @@ Rules = {
     posCntTeam : {
       DEF:1
       K:1
-      QB:2
-      RB:3
-      TE:1
-      WR:4
-    }
-    flexCnt: 0
-
-    totalPlayers:17
-    #number of players that were kept
-    keptCnt : 12+11
-    teamCnt : 12
-    #No defense / kicker
-    startingCash : 183
-    totalCash: () ->
-      #total money left after keepers on each team -
-      #200+194+65+126+184+152+164+147+146+150+121+177 - this.totalPlayers * this.teamCnt - this.keptCnt
-      183*12
-
-    #playersPerTeam = 15
-    forceDefKToOne : true
-  }
-
-  schief: {
-    #Total at the position for a team
-    posCntTeam : {
-      DEF:1
-      K:1
       QB:1
-      RB: 2
-      TE: 1
-      WR: 3
+      RB:2
+      TE:1
+      WR:3
     }
-    #RB/WR/TE flex
-    flexPos: ["RB","WR","TE"]
-    flexCnt: 1
 
-    totalPlayers:17
-    #number of players that were kept
-    keptCnt : 0+1+3+3+1+2+1+3+3+3+3+2
-    teamCnt : 12
-    #No defense / kicker
-    startingCash : 183
-    totalCash: () ->
-      #total money left after keepers on each team -
-      200+194+65+126+184+152+164+147+146+150+121+177 - this.totalPlayers * this.teamCnt - this.keptCnt
+    #   #RB/WR/TE flex
+    #   flexPos: ["RB","WR","TE"]
+    #   flexCnt: 1
+    
 
+    totalPlayers:15
     #playersPerTeam = 15
     forceDefKToOne : true
+
+    #No defense / kicker
+    startingCash : 200
+    teamCnt : 12
+    #   forceDefKToOne : true
+
+    calcKeeperCnt : 0
+    calcKeeperValue : 0
+
+    totalCash: () ->
+      #total money left after keepers on each team -
+      playersToDraft = @totalPlayers * @teamCnt - @calcKeeperCnt
+      ret = @startingCash * @teamCnt - playersToDraft - @calcKeeperValue
+      ret
+
   }
 }
 
@@ -65,73 +46,15 @@ process = (players, rules) ->
     player.age = +player.age
   #  player.exp = if player.exp == "R" then 0 else +player.exp
     player.pts = +player.pts
-    player.kept = player.kept == "t"
+    player.kept = +player.kept
+    if player.kept > 0
+      rules.calcKeeperCnt += 1
+      rules.calcKeeperValue += player.kept
   #  player.value = +player.value
   #  player.lvalue = +player.lvalue
 
   #Headers in the output table
   Headers = ["pos", "prk", "name", "team", "bye", "inj", "age", "exp", "pts", "nvalue", "p80", "kept"]
-
-
-
-  #totalCash = 135+196+169+80+154+179+146+86+82+143+150+145
-  keptCnt = 0
-
-  espnDump = (players) ->
-    console.log("ESPN: ")
-    ps = _.map players, (p) -> {name: p.name, team: p.team, pos: p.pos, prc: p.nvalue}
-    code = """
-      var players = #{JSON.stringify(ps)}
-      var tc = function(t) {
-        switch (t) {
-          case "WSH":
-            return "WAS"
-          case  "JAC":
-            return "JAX"
-          default:
-            return t
-        }
-      }
-
-      function lookup(name, eteam, pos) {
-        var team = tc(eteam)
-        var xs = players.filter(function(p){return p.name === name && p.team === team})
-        if (xs.length == 0) {
-          console.error("FOUND NO MATCH:", name, team, pos)
-          return 0
-        } else if (xs.length == 1) {
-          console.log("FOUND EXACT MATCH:", name, team, pos, xs)
-          var prc = xs[0].prc
-          if (prc < -20) {
-            return 1
-          } else if (prc <= 0) {
-            return 2
-          } else if (prc <= 3) {
-            return 3
-          } else {
-            return prc
-          }
-        } else {
-          console.error("FOUND TOO MANY MATCHES:", name, team, pos, found)
-          return 0
-        }
-      }
-
-      function dop(html) {
-        var input = html.querySelector(".playertableData input")
-        var name = html.querySelector(".playertablePlayerName a").text
-        var txt = ""+html.querySelector(".playertablePlayerName").childNodes[1].textContent
-        var split = /,\\s(\\S*)\\s(\\S*)/g.exec(txt)
-        var team = split[1].toUpperCase()
-        var pos = split[2].toUpperCase()
-
-        //console.log(name,team,pos)
-        input.value = lookup(name, team, pos)
-      }
-      [].forEach.call(document.querySelectorAll(".pncPlayerRow"), dop)
-    """
-
-    code
 
   playerToRow = (p) ->
     _.map Headers, (h) -> p[h]
@@ -179,8 +102,7 @@ process = (players, rules) ->
       #don't consider bench, these are the players that will start for some team in the league at this position
       useInTotals = not ((pos == "DEF" or pos == "K") and rules.forceDefKToOne)
       picks = _.first players, posCntLeague[pos]
-      _.forEach picks, (p) -> if p.kept then keptCnt++
-      picks = _.filter picks, (p) -> !p.kept
+      picks = _.filter picks, (p) -> p.kept == 0
 
       pts = picks.map (p) -> p.pts
       #create a set of stats for each position
@@ -217,6 +139,63 @@ process = (players, rules) ->
     thead.selectAll("td").data(Headers).enter().append("td").text((d)->d)
     tbody = table.append("tbody")
     tbody.selectAll("tr").data(players).enter().append("tr").selectAll("td").data((p)->playerToRow(p)).enter().append("td").text((d)->d)
+
+  espnDump = (players) ->
+    console.log("ESPN: ")
+    ps = _.map players, (p) -> {name: p.name, team: p.team, pos: p.pos, prc: p.nvalue}
+    code = """
+      var players = #{JSON.stringify(ps)}
+      var tc = function(t) {
+        switch (t) {
+          case "WSH":
+            return "WAS"
+          case  "JAC":
+            return "JAX"
+          default:
+            return t
+        }
+      }
+
+      function lookup(name, eteam, pos) {
+        var team = tc(eteam)
+        var xs = players.filter(function(p){return p.name === name && p.team === team})
+        if (xs.length == 0) {
+          console.error("FOUND NO MATCH:", name, team, pos)
+          return null
+        } else if (xs.length == 1) {
+          console.log("FOUND EXACT MATCH:", name, team, pos, xs)
+          var prc = xs[0].prc
+          if (prc < -20) {
+            return 1
+          } else if (prc <= 0) {
+            return 2
+          } else if (prc <= 3) {
+            return 3
+          } else {
+            return prc
+          }
+        } else {
+          console.error("FOUND TOO MANY MATCHES:", name, team, pos, found)
+          return null
+        }
+      }
+
+      function dop(html) {
+        var input = html.querySelector(".playertableData input")
+        var name = html.querySelector(".playertablePlayerName a").text
+        var txt = ""+html.querySelector(".playertablePlayerName").childNodes[1].textContent
+        var split = /,\\s(\\S*)\\s(\\S*)/g.exec(txt)
+        var team = split[1].toUpperCase()
+        var pos = split[2].toUpperCase()
+
+        //console.log(name,team,pos)
+        var calc = lookup(name, team, pos)
+        if (calc != null) input.value = calc
+      }
+      [].forEach.call(document.querySelectorAll(".pncPlayerRow"), dop)
+    """
+
+    code    
 
 
   processPlayers(players)
