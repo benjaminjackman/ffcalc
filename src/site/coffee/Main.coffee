@@ -99,30 +99,34 @@ process = (players, rules) ->
     totPnts = 0
     totDiff = 0
     _.forEach posToPlayers, (players, pos) ->
-      #don't consider bench, these are the players that will start for some team in the league at this position
       useInTotals = not ((pos == "DEF" or pos == "K") and rules.forceDefKToOne)
+      #don't consider bench, these are the players that will start for some team in the league at this position
       picks = _.first players, posCntLeague[pos]
+      #filter out keepers from the pool of players to be picked at that position
+      #if someone keeps too many players at a position this might cause some minor
+      #misvaluation
       picks = _.filter picks, (p) -> p.kept == 0
+
 
       pts = picks.map (p) -> p.pts
       #create a set of stats for each position
-      posToStats[pos] = stats = {}
-      stats.min = d3.min(pts)
-      stats.max = d3.max(pts)
-      stats.sum = d3.sum(pts)
-      stats.avg = d3.mean(pts)
-      stats.median = d3.median(pts)
-      stats.diff = stats.max - stats.min
+      posToStats[pos] = posStats = {}
+      posStats.min = d3.min(pts)
+      posStats.max = d3.max(pts)
+      posStats.sum = d3.sum(pts)
+      posStats.avg = d3.mean(pts)
+      posStats.median = d3.median(pts)
+      posStats.diff = posStats.max - posStats.min
       #Add the total points at the position to the overall total points
-      if useInTotals then totPnts += stats.sum
+      if useInTotals then totPnts += posStats.sum
       #A players diff is equal to his pts minus the worst starter at his position
-      _.forEach players, (p) -> p.diff = p.pts - stats.min
+      _.forEach players, (p) -> p.diff = p.pts - posStats.min
       #For each position compute the total of all the pickable players diffs,
       # these will be the points that people are competing in the draft over
       # these are the points that matter and what money should be spent on
-      stats.totDiff = d3.sum(picks, (p)->p.diff)
+      posStats.totDiff = d3.sum(picks, (p)->p.diff)
       #record in the overall total diff as well
-      if useInTotals then totDiff += stats.totDiff
+      if useInTotals then totDiff += posStats.totDiff
 
     # therefore the value of each player is simply equal to his portion of the overall diff pool
     _.forEach players, (p) ->
